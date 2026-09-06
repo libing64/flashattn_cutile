@@ -1,0 +1,5 @@
+cuda-tile>=1.5.0
+torch>=2.5
+# Optional library baseline (may fail to build on sm_120):
+# flash-attn>=2.6
+pytest>=8.0
