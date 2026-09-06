@@ -91,6 +91,42 @@ python -m bench.sweep_seqlen --seq-lens 512,2048,8192,65536,262144,1048576
 
 默认配置：`B=1, H=8, D=64, causal=True`（约 15GB 卡上 S=1M 的 QKV+O 约 4GiB；若 OOM 会跳过该点）。
 
+## 实测结果（RTX 5060 Ti / sm_120）
+
+配置：`B=1, H=8, D=64, causal=True, bf16`；S 取 `[512, 1M]` 共 12 个 log2 点。  
+`cutile_standard` 仅测到 S=8192；原始数据见 [`results/seqlen_sweep.csv`](results/seqlen_sweep.csv)。
+
+### 曲线
+
+![Latency vs S](results/seqlen_sweep_latency.png)
+
+![TFLOPS vs S](results/seqlen_sweep_tflops.png)
+
+![Speedup vs Torch Flash](results/seqlen_sweep_speedup.png)
+
+### 延迟与吞吐（摘录）
+
+| S | standard (ms) | fa_v1 (ms) | fa_v2 (ms) | torch_flash (ms) | fa_v2 TFLOPS | torch TFLOPS |
+|---:|---:|---:|---:|---:|---:|---:|
+| 512 | 0.046 | 0.034 | **0.033** | 0.040 | 4.1 | 3.4 |
+| 1K | 0.093 | 0.052 | **0.049** | 0.068 | 11.1 | 7.9 |
+| 2K | 0.267 | 0.145 | **0.125** | 0.154 | 17.2 | 14.0 |
+| 4K | 0.888 | 0.482 | **0.412** | 0.469 | 20.9 | 18.3 |
+| 8K | 3.34 | 1.78 | **1.51** | 1.63 | 22.8 | 21.1 |
+| 16K | — | 7.30 | **6.11** | 6.32 | 22.5 | 21.7 |
+| 32K | — | 29.1 | **24.6** | 24.8 | 22.3 | 22.1 |
+| 64K | — | 114 | **97.2** | 97.3 | 22.6 | 22.6 |
+| 128K | — | 453 | **387** | 388 | 22.7 | 22.7 |
+| 256K | — | 1814 | 1560 | **1548** | 22.6 | 22.7 |
+| 512K | — | 7359 | 6265 | **6207** | 22.5 | 22.7 |
+| 1M | — | 29295 | 25023 | **24723** | 22.5 | 22.8 |
+
+要点：
+
+- 中短序列上 **fa_v2** 通常最快，并略优于 Torch Flash SDPA。
+- 大 S（≥256K）时 **fa_v2 ≈ Torch Flash**（约 22.5–22.8 TFLOPS）；**fa_v1** 稳定约 ~19 TFLOPS。
+- **standard** 明显更慢，且扫点脚本在 S>8K 后跳过。
+
 ## 目录
 
 ```
@@ -101,6 +137,8 @@ attention/
   reference.py     # math / torch flash / flash_attn
   utils.py
 bench/benchmark.py
+bench/sweep_seqlen.py
+results/           # 扫点 CSV 与曲线图
 tests/test_correctness.py
 ```
 
