@@ -66,6 +66,31 @@ python -m bench.benchmark --warmup 5 --iters 20
 - `max|Δmath|` / `mean|Δmath|`：相对 FP32 math 的绝对误差
 - `max|Δflash|`：相对 Torch Flash SDPA 的绝对误差
 
+### 序列长度扫点 + 曲线（S ∈ [512, 1M]）
+
+默认在 `512, 1K, 2K, …, 1M`（12 个 log2 点）上测 latency / TFLOPS，并出图：
+
+```bash
+# 全点位（大 S 较慢；standard 仅跑到 8K；>8K 不做 math 精度）
+python -m bench.sweep_seqlen --out results/seqlen_sweep
+
+# 快速：S 截断到 16K
+python -m bench.sweep_seqlen --quick --out results/seqlen_quick
+
+# 自定义范围 / 点位
+python -m bench.sweep_seqlen --min-s 512 --max-s 65536
+python -m bench.sweep_seqlen --seq-lens 512,2048,8192,65536,262144,1048576
+```
+
+产物（默认 `results/`）：
+
+- `seqlen_sweep.csv`
+- `seqlen_sweep_latency.png` — 延迟 vs S（log-log）
+- `seqlen_sweep_tflops.png` — 等效 TFLOPS vs S
+- `seqlen_sweep_speedup.png` — 相对 Torch Flash 的加速比
+
+默认配置：`B=1, H=8, D=64, causal=True`（约 15GB 卡上 S=1M 的 QKV+O 约 4GiB；若 OOM 会跳过该点）。
+
 ## 目录
 
 ```
